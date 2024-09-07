@@ -1,4 +1,4 @@
-export AUTO_NOTIFY_VERSION="0.10.2"
+export AUTO_NOTIFY_VERSION="0.10.3"
 
 # Time it takes for a notification to expire
 [[ -z "$AUTO_NOTIFY_EXPIRE_TIME" ]] &&
@@ -10,18 +10,18 @@ export AUTO_NOTIFY_VERSION="0.10.2"
 # List of commands/programs to ignore sending notifications for
 [[ -z "$AUTO_NOTIFY_IGNORE" ]] &&
     export AUTO_NOTIFY_IGNORE=(
-        'vim'
-        'nvim'
-        'less'
-        'more'
-        'man'
-        'tig'
-        'watch'
         'git commit'
-        'top'
         'htop'
-        'ssh'
+        'less'
+        'man'
+        'more'
         'nano'
+        'nvim'
+        'ssh'
+        'tig'
+        'top'
+        'vim'
+        'watch'
     )
 
 function _auto_notify_format() {
@@ -46,18 +46,31 @@ function _auto_notify_message() {
 
     local title="${AUTO_NOTIFY_TITLE:-$DEFAULT_TITLE}"
     local text="${AUTO_NOTIFY_BODY:-$DEFAULT_BODY}"
+    local is_error=false
+
+    # Exit code 130 is returned when a process is terminated with SIGINT.
+    # Since the user is already interacting with the program, there is no
+    # need to make the notification persistent.
+    if [[ "$exit_code" != "0" ]] && [[ "$exit_code" != "130" ]]; then
+        is_error=true
+    fi
 
     title="$(_auto_notify_format "$title" "$command" "$elapsed" "$exit_code")"
-    body="$(_auto_notify_format "$text" "$command" "$elapsed" "$exit_code")"
+    if [[ "$AUTO_NOTIFY_STATUS_BODY" == 'true' ]]; then
+        if [[ "$is_error" == "true" ]]; then
+            body="❌"
+        else
+            body="✅"
+        fi
+    else
+        body="$(_auto_notify_format "$text" "$command" "$elapsed" "$exit_code")"
+    fi
 
     if [[ "$platform" == "Linux" ]]; then
         local urgency="normal"
         local transient="--hint=int:transient:1"
         local icon=${AUTO_NOTIFY_ICON_SUCCESS:-""}
-        # Exit code 130 is returned when a process is terminated with SIGINT.
-        # Since the user is already interacting with the program, there is no
-        # need to make the notification persistent.
-        if [[ "$exit_code" != "0" ]] && [[ "$exit_code" != "130" ]]; then
+        if [[ "$is_error" == "true" ]]; then
             urgency="critical"
             transient=""
             icon=${AUTO_NOTIFY_ICON_FAILURE:-""}

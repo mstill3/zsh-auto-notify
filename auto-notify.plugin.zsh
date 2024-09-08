@@ -24,12 +24,32 @@ export AUTO_NOTIFY_VERSION="0.10.3"
         'watch'
     )
 
+# Function to convert elapsed seconds to human-readable format
+function convert_seconds() {
+    local total_seconds=$1
+    local hours=$((total_seconds / 3600))
+    local minutes=$(( (total_seconds % 3600) / 60 ))
+    local seconds=$((total_seconds % 60))
+    # Build the formatted string with units
+    local result=""
+    if [ "$hours" -gt 0 ]; then
+        result="${hours}h "
+    fi
+    if [ "$minutes" -gt 0 ]; then
+        result="${result}${minutes}m "
+    fi
+    result="${result}${seconds}s"
+    echo "$result"
+}
+
 function _auto_notify_format() {
     local MESSAGE="$1"
     local command="$2"
     local elapsed="$3"
+    local elapsed_converted=$(convert_seconds "$elapsed")
     local exit_code="$4"
     MESSAGE="${MESSAGE//\%command/$command}"
+    MESSAGE="${MESSAGE//\%elapsed_converted/$elapsed_converted}"
     MESSAGE="${MESSAGE//\%elapsed/$elapsed}"
     MESSAGE="${MESSAGE//\%exit_code/$exit_code}"
     printf "%s" "$MESSAGE"
@@ -51,17 +71,20 @@ function _auto_notify_message() {
     # Exit code 130 is returned when a process is terminated with SIGINT.
     # Since the user is already interacting with the program, there is no
     # need to make the notification persistent.
-    if [[ "$exit_code" != "0" ]] && [[ "$exit_code" != "130" ]]; then
+    if [[ "$exit_code" == "130" ]]; then
+        return
+    elif [[ "$exit_code" != "0" ]]; then
         is_error=true
     fi
 
     title="$(_auto_notify_format "$title" "$command" "$elapsed" "$exit_code")"
     if [[ "$AUTO_NOTIFY_STATUS_BODY" == 'true' ]]; then
+        local status_icon="✅"
         if [[ "$is_error" == "true" ]]; then
-            body="❌"
-        else
-            body="✅"
+            status_icon="❌"
         fi
+        text="$(echo -e "status:\t\t$status_icon\ncommand:\t%command\ntime:\t\t%elapsed_converted")"
+        body="$(_auto_notify_format "$text" "$command" "$elapsed" "$exit_code")"
     else
         body="$(_auto_notify_format "$text" "$command" "$elapsed" "$exit_code")"
     fi

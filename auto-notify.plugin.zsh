@@ -83,7 +83,7 @@ function _auto_notify_message() {
         if [[ "$is_error" == "true" ]]; then
             status_icon="❌"
         fi
-        text="$(echo -e "status:\t\t$status_icon\ncommand:\t%command\ntime:\t\t%elapsed_converted")"
+        text="$(echo -e "%command\n\nstatus:\t$status_icon\ntime:\t%elapsed_converted")"
         body="$(_auto_notify_format "$text" "$command" "$elapsed" "$exit_code")"
     else
         body="$(_auto_notify_format "$text" "$command" "$elapsed" "$exit_code")"
